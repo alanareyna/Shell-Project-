@@ -18,11 +18,16 @@ many times it shows up in our line_words.
 Note: We might need to look into dynamic memory allocation for allocating enough memory for pidt array
 to be passed into pipe() function. This will be dependant on our actual pipe (|) counter that we will be updating 
 as we parse through our linwe_words.
+
+Note: Might need to separate line_words into separate array of strings (char**) that begin at 
+[0] index so that we can pass the execvp(assuming we have to use execvp in the first place)
+
 For 1 command Tests:
     - We keep track of the number of strings that are going to be 
       stored from our split_cd_line() function. If we find no pipe (|)
       characters, i.e our pipe counter is equal to zero, that implies
-      that we should only have one command in our array. This should fork() once
+      that we should only have one command in our array. This should fork() once.
+      We can probably use execlp for one command.
 
 For 1 pipe:
     - We can parse through the function and keep a counter of how many pipe (|) 
@@ -42,6 +47,7 @@ For more than 1 pipe:
 
 */
 
+int checkForPipes(char** line_words);
 int main()
 {
     // Buffer for reading one line of input
@@ -49,17 +55,42 @@ int main()
     // holds separated words based on whitespace
     char* line_words[MAX_LINE_WORDS + 1];
 
-    // Loop until user hits Ctrl-D (end of input)
+    int pipeCounter = 0;
+
     // or some other input error occurs
     while( fgets(line, MAX_LINE_CHARS, stdin) ) {
-        int num_words = split_cmd_line(line, line_words);
 
-        for (int i=0; i < num_words; i++) {
-            printf("%s\n", line_words[i]);
-        }
+        //line is char Array
+        //line_words is array of strings
+        int num_words = split_cmd_line(line, line_words);
+        //Number of pipes in our entire command line
+        pipeCounter = checkForPipes(line_words);
+        switch(pipeCounter){
+            case 0:
+                pid_t pid;
+                if(pid = fork() == 0)
+                {
+                    execvp(line_words[0], line_words);
+                    while(wait(NULL) != -1);
+                }
+            
     }
+
+    }
+
+    
     
     return 0;
 }
 
-
+//Counting pipes function
+int checkForPipes(char** line_words)
+{
+    int returnPipes = 0;
+    for(int i = 0; line_words[i] != NULL; i++)
+    {
+        if((strcmp(line_words[i], "|") == 0))
+            returnPipes++;
+    }
+    return returnPipes;
+}
