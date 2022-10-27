@@ -47,30 +47,36 @@ For more than 1 pipe:
 
 */
 
+//Functions prototypes
 int checkForPipes(char** line_words);
-<<<<<<< Updated upstream
-=======
 char*** storeAllCommands(char** line_words, int pipe_counter);
 void storeInto(char** dest, char** src, int indexToStartAt, int countWords);
->>>>>>> Stashed changes
 int main()
 {
     // Buffer for reading one line of input
     char line[MAX_LINE_CHARS];
     // holds separated words based on whitespace
     char* line_words[MAX_LINE_WORDS + 1];
+    char*** beegYoshi;
 
     int pipeCounter = 0;
 
     // or some other input error occurs
-    while( fgets(line, MAX_LINE_CHARS, stdin) ) {
-
+    while( fgets(line, MAX_LINE_CHARS, stdin) ) 
+    {
         //line is char Array
         //line_words is array of strings
         int num_words = split_cmd_line(line, line_words);
+
         //Number of pipes in our entire command line
         pipeCounter = checkForPipes(line_words);
-        switch(pipeCounter){
+
+        //num_strings is number of strings in entire command minus the number of pipes in our entire cmd line
+        int num_strings = num_words - pipeCounter;
+
+        //Switch passed # of pipes and logic will be taken care of for each test
+        switch(pipeCounter)
+        {
             case 0:
                 pid_t pid;
                 if(pid = fork() == 0)
@@ -78,10 +84,6 @@ int main()
                     execvp(line_words[0], line_words);
                     while(wait(NULL) != -1);
                 }
-<<<<<<< Updated upstream
-            
-    }
-=======
             case 1:
                 // pid_t pid1;
                 // pid_t pid2;
@@ -101,7 +103,6 @@ int main()
 
 
         }
->>>>>>> Stashed changes
 
     }
 
@@ -121,8 +122,6 @@ int checkForPipes(char** line_words)
     }
     return returnPipes;
 }
-<<<<<<< Updated upstream
-=======
 
 // [1] = addr of string array [2] = string itself [3] = char inside of string
 char*** storeAllCommands(char** line_words, int pipe_counter)
@@ -184,4 +183,3 @@ void storeInto(char** dest, char** src, int indexToStartAt, int countWords)
     }
     
 }
->>>>>>> Stashed changes
