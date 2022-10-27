@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include "constants.h"
 #include "parsetools.h"
-
+#include <stdbool.h>
 /*Andrew Notes:
 
 NOTE: It seems that the total number of fork() calls depends on our number of
@@ -48,6 +48,11 @@ For more than 1 pipe:
 */
 
 int checkForPipes(char** line_words);
+<<<<<<< Updated upstream
+=======
+char*** storeAllCommands(char** line_words, int pipe_counter);
+void storeInto(char** dest, char** src, int indexToStartAt, int countWords);
+>>>>>>> Stashed changes
 int main()
 {
     // Buffer for reading one line of input
@@ -73,8 +78,30 @@ int main()
                     execvp(line_words[0], line_words);
                     while(wait(NULL) != -1);
                 }
+<<<<<<< Updated upstream
             
     }
+=======
+            case 1:
+                // pid_t pid1;
+                // pid_t pid2;
+                // int pfd1[2];
+                // int pfd2[2];
+                beegYoshi = storeAllCommands(line_words, pipeCounter);
+                
+                for(int i = 0; i < 2; i++)
+                {
+                    for(int j = 0; j < (pipeCounter + 1); j++)
+                    {
+                        
+                        printf("%s, ", beegYoshi[i][j]);
+                    }
+                }
+                
+
+
+        }
+>>>>>>> Stashed changes
 
     }
 
@@ -94,3 +121,67 @@ int checkForPipes(char** line_words)
     }
     return returnPipes;
 }
+<<<<<<< Updated upstream
+=======
+
+// [1] = addr of string array [2] = string itself [3] = char inside of string
+char*** storeAllCommands(char** line_words, int pipe_counter)
+{
+    //Allocate memory for the number of arrays of strings we are pointing to
+    //For example, if we have one pipe in the entire command line, we will have two full commands(pipeCounter + 1)
+
+    //New strategy: Dynamically allocate new string arrays and have returningArray point to them.
+    //After execd in main, free (all of the indexes to returningArray? or just the base address? not sure which needs to be done)
+    char*** returningArray = malloc(sizeof(char***) * (pipe_counter + 1));
+    int returnIndex = 0;
+    int countWords = 0;
+    int startCounter = 0;
+    bool start = true;
+    int idxToStart = -1;
+    for(int i = 0; line_words[i] != NULL; i++)
+    {
+        //need to check for no pipes and store again
+        if((strcmp(line_words[i], "|") == 0) || line_words[i + 1] == NULL)
+        {
+            //We are going to store the whole string up until a pipe in this newly dynamically
+            //allocated ptr to strings. Then after this, point returningArray at a specified index to the
+            //base address of this newly allocated array.
+            if(start)
+            {
+                idxToStart = 0;
+                start = false;
+            }  
+            
+            char** tempToBeAssigned = malloc(sizeof(char**) * countWords);
+            for(int i = 0; i < countWords; i++)
+            {
+                tempToBeAssigned[i] = malloc(sizeof(char*) * 1024);
+            }
+            storeInto(tempToBeAssigned, line_words, idxToStart, countWords);
+            idxToStart = i + 1;
+            returningArray[returnIndex] = tempToBeAssigned;
+            returnIndex++;
+            countWords = 0;
+
+            
+        }
+        countWords++;
+       
+    }
+    return returningArray;
+    
+}
+
+void storeInto(char** dest, char** src, int indexToStartAt, int countWords)
+{   
+    //printf("%d ,", indexToStartAt);
+    
+    // //SEG FAULT RIGHT HERE THERE BE A SEG FAULT RIGHT HERE AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
+    for(int i = 0, j = indexToStartAt; i < countWords ; i++, j++)
+    {
+        //printf("%s, ", src[j]);
+        strcpy(dest[i], src[j]);
+    }
+    
+}
+>>>>>>> Stashed changes
