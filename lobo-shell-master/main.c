@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include "constants.h"
 #include "parsetools.h"
-
+#include <stdbool.h>
 /*Andrew Notes:
 
 NOTE: It seems that the total number of fork() calls depends on our number of
@@ -46,11 +46,14 @@ For more than 1 pipe:
        
 
 */
+struct{
+    int isBeginning;
+}beginning = {1};
 
 //Functions prototypes
 int checkForPipes(char** line_words);
 char*** storeAllCommands(char** line_words, int pipe_counter);
-void storeInto(char** dest, char** src, int indexToStartAt);
+void storeInto(char** dest, char** src, int indexToStartAt, int countWords);
 int main()
 {
     // Buffer for reading one line of input
@@ -58,7 +61,7 @@ int main()
     // holds separated words based on whitespace
     char* line_words[MAX_LINE_WORDS + 1];
     char*** beegYoshi;
-
+    pid_t pid;
     int pipeCounter = 0;
 
     // or some other input error occurs
@@ -70,37 +73,85 @@ int main()
 
         //Number of pipes in our entire command line
         pipeCounter = checkForPipes(line_words);
-
+        
         //num_strings is number of strings in entire command minus the number of pipes in our entire cmd line
         int num_strings = num_words - pipeCounter;
 
+        
         //Switch passed # of pipes and logic will be taken care of for each test
         switch(pipeCounter)
         {
+            
             case 0:
-                pid_t pid;
                 if(pid = fork() == 0)
                 {
                     execvp(line_words[0], line_words);
                     while(wait(NULL) != -1);
+                    
                 }
+                break;
             case 1:
-                // pid_t pid1;
-                // pid_t pid2;
-                // int pfd1[2];
-                // int pfd2[2];
+                //printf("In case 1, pipecounter = %d: ", pipeCounter);
+                int pfd[2];
+                
                 beegYoshi = storeAllCommands(line_words, pipeCounter);
-                // printf("%s, ", beegYoshi[0]);
+                pipe(pfd);
 
+                for(int i = 0; i < (pipeCounter + 1); i++)
+                {
+                    
+                    //Parent needs to control when at beginning and end process
+                    beginning.isBeginning = (i == 0) ? 1 : 0;
+                    pid = fork();
+                    if(pid == -1)
+                    {
+                        printf("Error creating child process\n");
+                        exit(1);
+                    }
+                    if(pid == 0)
+                    {
+                        //Child fork execution
+                        switch(beginning.isBeginning)
+                        {
+                            //Case 0 is end process logic
+                            case 0:
+                                dup2(pfd[0], 0);
+                                if(close(pfd[0]) == -1)
+                                    printf("Error closing pfd2 from end process\n");
+                                execvp(beegYoshi[1][0], beegYoshi[1]);
+                                return 0;
+                            //Case 1 is beginning process logic
+                            case 1:
+                                dup2(pfd[1], 1);
+                                if(close(pfd[1]) == -1)
+                                    printf("Error closing pfd2 from beginning process\n");
+                                execvp(beegYoshi[0][0], beegYoshi[0]);
+                                return 0;
+                            default: 
+                                break;
+                        };
+                    }
+                }
+                //reap children and close fds
+                if(close(pfd[0]) == -1 || close(pfd[1]) == -1)
+                {
+                    printf("Parent had error closing stdin and stdout");
+                    exit(1);
+                }
+                while(wait(NULL) != -1){
 
-        }
+                };
+                break;
+            default:
+                break;
+        };
 
     }
 
-    
-    
     return 0;
 }
+
+
 
 //Counting pipes function
 int checkForPipes(char** line_words)
@@ -126,41 +177,48 @@ char*** storeAllCommands(char** line_words, int pipe_counter)
     int returnIndex = 0;
     int countWords = 0;
     int startCounter = 0;
+    bool start = true;
     int idxToStart = -1;
     for(int i = 0; line_words[i] != NULL; i++)
     {
-        
-        if((strcmp(line_words[i], "|") == 0))
+        //need to check for no pipes and store again
+        if((strcmp(line_words[i], "|") == 0) || line_words[i + 1] == NULL)
         {
             //We are going to store the whole string up until a pipe in this newly dynamically
             //allocated ptr to strings. Then after this, point returningArray at a specified index to the
             //base address of this newly allocated array.
-            idxToStart += 1;
+            if(start)
+            {
+                idxToStart = 0;
+                start = false;
+            }  
+            
             char** tempToBeAssigned = malloc(sizeof(char**) * countWords);
-            storeInto(tempToBeAssigned, line_words, idxToStart);
-            exit(1);
+            for(int i = 0; i < countWords; i++)
+            {
+                tempToBeAssigned[i] = malloc(sizeof(char*) * 1024);
+            }
+            storeInto(tempToBeAssigned, line_words, idxToStart, countWords);
+            idxToStart = i + 1;
             returningArray[returnIndex] = tempToBeAssigned;
             returnIndex++;
-            idxToStart = startCounter + 1;
             countWords = 0;
+
             
         }
         countWords++;
-        startCounter++;
+       
     }
     return returningArray;
     
 }
 
-void storeInto(char** dest, char** src, int indexToStartAt)
+void storeInto(char** dest, char** src, int indexToStartAt, int countWords)
 {   
-    
-    
-    
-    //SEG FAULT RIGHT HERE THERE BE A SEG FAULT RIGHT HERE AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
-    // for(int i = 0, j = indexToStartAt; (strcmp(src[j], "|") != 0) || (src[j] != NULL); i++, j++)
-    // {
-    //     strcpy(dest[i], src[j]);
-    // }
+
+    for(int i = 0, j = indexToStartAt; i < countWords ; i++, j++)
+    {
+        strcpy(dest[i], src[j]);
+    }
     
 }
