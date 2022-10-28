@@ -88,44 +88,111 @@ int main()
                     while(wait(NULL) != -1);
                 }
             case 1:
+                sleep(10.0);
                 int pfd[2];
-                bool isBegining = true;
-                bool isEnd = false;
+                //bool isBegining = true;
+                //bool isEnd = false;
                 beegYoshi = storeAllCommands(line_words, pipeCounter);
-                pipe(pfd);
-                //printf("line 93");
+                
+
+                int pipefds[2*pipeCounter];
+
+                for(int i = 0; i < (pipeCounter); i++){
+                    if(pipe(pipefds + i*2) < 0) {
+                        perror("couldn't pipe");
+                        exit(EXIT_FAILURE);
+                    }
+                }
 
 
-                pid = fork();
-                for(int i = 0; i < (pipeCounter + 1); i++)
+                int j = 0;
+                int nextRow = 0;
+
+                while(beegYoshi[nextRow]) 
                 {
-                    //printf("line 97");
-                    
-                    printf("%d, ", pid);
-                    if (pid == 0)
+                    pid = fork();
+                    if(pid == 0) 
                     {
-                            // if(i == pipeCounter + 1)
-                            //     isEnd = true;
-                            if(beginning.isBeginning)
-                            {
-                                printf("hello beginning");
-                                beginning.isBeginning = false;
-                                //Beggining points to write end of pipe
-                                //dup2(pfd[1], 1);
-                                execvp(beegYoshi[0][0], beegYoshi[0]);
+
+                        //if not last command
+                        if(beegYoshi[nextRow + 1 ] != NULL){
+                            if(dup2(pipefds[j + 1], 1) < 0){
+                                perror("dup2");
+                                exit(EXIT_FAILURE);
+                            }
+                        }
+
+                        //if not first command&& j!= 2*numPipes
+                        if(j != 0 && j!= 2*pipeCounter ){
+                            if(dup2(pipefds[j-2], 0) < 0){
+                                perror(" dup2");///j-2 0 j+1 1
+                                exit(EXIT_FAILURE);
+
+                            }
+                        }
+
+
+                        for(int l = 0; l < 2*pipeCounter; l++){
+                                close(pipefds[j]);
+                        }
+
+                        if( execvp(beegYoshi[nextRow][0], beegYoshi[nextRow]) < 0 ){
+                                perror(beegYoshi[nextRow][0]);
+                                exit(EXIT_FAILURE);
+                        }
+                    } 
+                    else if(pid < 0){
+                        perror("error");
+                        exit(EXIT_FAILURE);
+                    }
+
+                    nextRow +=1;
+                    j+=2;
+                }
+                /**Parent closes the pipes and wait for children*/
+
+                for(int k = 0; k < 2 * pipeCounter; k++){
+                    close(pipefds[k]);
+                }
+
+                while ( wait(NULL) != -1)
+                    ;
+
+                //printf("line 93");
+                // pid = fork();
+                // for(int i = 0; i < (pipeCounter + 1); i++)
+                // {
+                //     pipe(pfd);
+                // }
+                // for(int i = 0; i < (pipeCounter + 1); i++)
+                // {
+                //     //printf("line 97");
+                    
+                //     //printf("%d, ", pid);
+                //     if (pid == 0)
+                //     {
+                //             // if(i == pipeCounter + 1)
+                //             //     isEnd = true;
+                //             if(beginning.isBeginning)
+                //             {
+                //                 printf("hello beginning");
+                //                 beginning.isBeginning = false;
+                //                 //Beggining points to write end of pipe
+                //                 //dup2(pfd[1], 1);
+                //                 execvp(beegYoshi[0][0], beegYoshi[0]);
                                 
                             
 
-                            }
-                            else if(!beginning.isBeginning)
-                            {
-                                printf("hello end");
-                                //End points to read end of pipe
-                                //dup2(pfd[0], 0);
-                                execvp(beegYoshi[1][0], beegYoshi[0]);
+                //             }
+                //             else if(!beginning.isBeginning)
+                //             {
+                //                 printf("hello end");
+                //                 //End points to read end of pipe
+                //                 //dup2(pfd[0], 0);
+                //                 execvp(beegYoshi[1][0], beegYoshi[0]);
                                 
-                            }
-                    }
+                //             }
+                //     }
                     //printf("%d, ", pid);
                     // switch(pid = fork())
                     // {
@@ -147,7 +214,7 @@ int main()
                     // }
                     // printf("%d, ", pid);
                     
-                }
+                //}
                 
 
                 // for(int i = 0; i < 2; i++)
