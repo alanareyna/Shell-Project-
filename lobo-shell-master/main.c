@@ -46,6 +46,9 @@ For more than 1 pipe:
        
 
 */
+struct{
+    bool isBeginning;
+}beginning = {true};
 
 //Functions prototypes
 int checkForPipes(char** line_words);
@@ -58,7 +61,7 @@ int main()
     // holds separated words based on whitespace
     char* line_words[MAX_LINE_WORDS + 1];
     char*** beegYoshi;
-
+    pid_t pid;
     int pipeCounter = 0;
 
     // or some other input error occurs
@@ -77,28 +80,84 @@ int main()
         //Switch passed # of pipes and logic will be taken care of for each test
         switch(pipeCounter)
         {
+            
             case 0:
-                pid_t pid;
                 if(pid = fork() == 0)
                 {
                     execvp(line_words[0], line_words);
                     while(wait(NULL) != -1);
                 }
             case 1:
-                // pid_t pid1;
-                // pid_t pid2;
-                // int pfd1[2];
-                // int pfd2[2];
+                int pfd[2];
+                bool isBegining = true;
+                bool isEnd = false;
                 beegYoshi = storeAllCommands(line_words, pipeCounter);
-                
-                for(int i = 0; i < 2; i++)
+                pipe(pfd);
+                //printf("line 93");
+
+
+                pid = fork();
+                for(int i = 0; i < (pipeCounter + 1); i++)
                 {
-                    for(int j = 0; j < (pipeCounter + 1); j++)
+                    //printf("line 97");
+                    
+                    printf("%d, ", pid);
+                    if (pid == 0)
                     {
-                        
-                        printf("%s, ", beegYoshi[i][j]);
+                            // if(i == pipeCounter + 1)
+                            //     isEnd = true;
+                            if(beginning.isBeginning)
+                            {
+                                printf("hello beginning");
+                                beginning.isBeginning = false;
+                                //Beggining points to write end of pipe
+                                //dup2(pfd[1], 1);
+                                execvp(beegYoshi[0][0], beegYoshi[0]);
+                                
+                            
+
+                            }
+                            else if(!beginning.isBeginning)
+                            {
+                                printf("hello end");
+                                //End points to read end of pipe
+                                //dup2(pfd[0], 0);
+                                execvp(beegYoshi[1][0], beegYoshi[0]);
+                                
+                            }
                     }
+                    //printf("%d, ", pid);
+                    // switch(pid = fork())
+                    // {
+                    
+                    //     case -1:
+                    //         printf("Your fork was not successfully created\n...");
+                    //         //exit(1);
+                    //         break;
+                    //     case 0:
+                    //         printf("hello");
+                    //         
+                    //         break;
+                    //     default: 
+                    //         printf("%d, ", pid);
+                    //         break;
+
+
+                            
+                    // }
+                    // printf("%d, ", pid);
+                    
                 }
+                
+
+                // for(int i = 0; i < 2; i++)
+                // {
+                //     for(int j = 0; j < (pipeCounter + 1); j++)
+                //     {
+                        
+                //         printf("%s, ", beegYoshi[i][j]);
+                //     }
+                // }
                 
 
 
@@ -173,12 +232,9 @@ char*** storeAllCommands(char** line_words, int pipe_counter)
 
 void storeInto(char** dest, char** src, int indexToStartAt, int countWords)
 {   
-    //printf("%d ,", indexToStartAt);
-    
-    // //SEG FAULT RIGHT HERE THERE BE A SEG FAULT RIGHT HERE AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
+
     for(int i = 0, j = indexToStartAt; i < countWords ; i++, j++)
     {
-        //printf("%s, ", src[j]);
         strcpy(dest[i], src[j]);
     }
     
