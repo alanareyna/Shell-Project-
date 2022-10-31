@@ -47,8 +47,8 @@ For more than 1 pipe:
 
 */
 struct{
-    bool isBeginning;
-}beginning = {true};
+    int isBeginning;
+}beginning = {1};
 
 //Functions prototypes
 int checkForPipes(char** line_words);
@@ -73,10 +73,11 @@ int main()
 
         //Number of pipes in our entire command line
         pipeCounter = checkForPipes(line_words);
-
+        
         //num_strings is number of strings in entire command minus the number of pipes in our entire cmd line
         int num_strings = num_words - pipeCounter;
 
+        
         //Switch passed # of pipes and logic will be taken care of for each test
         switch(pipeCounter)
         {
@@ -86,89 +87,76 @@ int main()
                 {
                     execvp(line_words[0], line_words);
                     while(wait(NULL) != -1);
+                    
                 }
+                break;
             case 1:
+                //printf("In case 1, pipecounter = %d: ", pipeCounter);
                 int pfd[2];
-                bool isBegining = true;
-                bool isEnd = false;
+                
                 beegYoshi = storeAllCommands(line_words, pipeCounter);
                 pipe(pfd);
-                //printf("line 93");
 
-
-                pid = fork();
                 for(int i = 0; i < (pipeCounter + 1); i++)
                 {
-                    //printf("line 97");
                     
-                    printf("%d, ", pid);
-                    if (pid == 0)
+                    //Parent needs to control when at beginning and end process
+                    beginning.isBeginning = (i == 0) ? 1 : 0;
+                    pid = fork();
+                    if(pid == -1)
                     {
-                            // if(i == pipeCounter + 1)
-                            //     isEnd = true;
-                            if(beginning.isBeginning)
-                            {
-                                printf("hello beginning");
-                                beginning.isBeginning = false;
-                                //Beggining points to write end of pipe
-                                //dup2(pfd[1], 1);
-                                execvp(beegYoshi[0][0], beegYoshi[0]);
-                                
-                            
-
-                            }
-                            else if(!beginning.isBeginning)
-                            {
-                                printf("hello end");
-                                //End points to read end of pipe
-                                //dup2(pfd[0], 0);
-                                execvp(beegYoshi[1][0], beegYoshi[0]);
-                                
-                            }
+                        printf("Error creating child process\n");
+                        exit(1);
                     }
-                    //printf("%d, ", pid);
-                    // switch(pid = fork())
-                    // {
-                    
-                    //     case -1:
-                    //         printf("Your fork was not successfully created\n...");
-                    //         //exit(1);
-                    //         break;
-                    //     case 0:
-                    //         printf("hello");
-                    //         
-                    //         break;
-                    //     default: 
-                    //         printf("%d, ", pid);
-                    //         break;
-
-
-                            
-                    // }
-                    // printf("%d, ", pid);
+                    if(pid == 0)
+                    {
+                        //Child fork execution
+                        switch(beginning.isBeginning)
+                        {
+                            //Case 0 is end process logic
+                            case 0:
+                                dup2(pfd[0], 0);
+                                if(close(pfd[0]) == -1 || close(pfd[1]) == -1)
+                                    printf("Error closing pfd2 from end process\n");
+                                execvp(beegYoshi[1][0], beegYoshi[1]);
+                                return 0;
+                            //Case 1 is beginning process logic
+                            case 1:
+                                dup2(pfd[1], 1);
+                                if(close(pfd[1]) == -1 || close(pfd[0]) == -1)
+                                    printf("Error closing pfd2 from beginning process\n");
+                                execvp(beegYoshi[0][0], beegYoshi[0]);
+                                return 0;
+                            default: 
+                                break;
+                        };
+                    }
                     
                 }
                 
-
-                // for(int i = 0; i < 2; i++)
-                // {
-                //     for(int j = 0; j < (pipeCounter + 1); j++)
-                //     {
-                        
-                //         printf("%s, ", beegYoshi[i][j]);
-                //     }
-                // }
                 
-
-
-        }
+                //reap children and close fds
+                if(close(pfd[0]) == -1 || close(pfd[1]) == -1)
+                {
+                    printf("Parent had error closing stdin and stdout");
+                    exit(1);
+                }
+                
+                while(wait(NULL) != -1){
+                };
+                break;
+            
+            default:
+                
+                break;
+        };
 
     }
 
-    
-    
     return 0;
 }
+
+
 
 //Counting pipes function
 int checkForPipes(char** line_words)
