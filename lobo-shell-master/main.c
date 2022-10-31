@@ -54,6 +54,7 @@ struct{
 int checkForPipes(char** line_words);
 char*** storeAllCommands(char** line_words, int pipe_counter);
 void storeInto(char** dest, char** src, int indexToStartAt, int countWords);
+void closePfd(int pfd[][2], int pipeCounter);
 int main()
 {
     // Buffer for reading one line of input
@@ -76,7 +77,7 @@ int main()
         
         //num_strings is number of strings in entire command minus the number of pipes in our entire cmd line
         int num_strings = num_words - pipeCounter;
-
+        beegYoshi = storeAllCommands(line_words, pipeCounter);
         
         //Switch passed # of pipes and logic will be taken care of for each test
         switch(pipeCounter)
@@ -93,8 +94,6 @@ int main()
             case 1:
                 //printf("In case 1, pipecounter = %d: ", pipeCounter);
                 int pfd[2];
-                
-                beegYoshi = storeAllCommands(line_words, pipeCounter);
                 pipe(pfd);
 
                 for(int i = 0; i < (pipeCounter + 1); i++)
@@ -116,21 +115,22 @@ int main()
                             //Case 0 is end process logic
                             case 0:
                                 dup2(pfd[0], 0);
-                                if(close(pfd[0]) == -1)
-                                    printf("Error closing pfd2 from end process\n");
+                                if(close(pfd[0]) == -1 || close(pfd[1]) == -1)
+                                    strerror(errno);
                                 execvp(beegYoshi[1][0], beegYoshi[1]);
                                 return 0;
                             //Case 1 is beginning process logic
                             case 1:
                                 dup2(pfd[1], 1);
-                                if(close(pfd[1]) == -1)
-                                    printf("Error closing pfd2 from beginning process\n");
+                                if(close(pfd[1]) == -1 || close(pfd[0]) == -1)
+                                    strerror(errno);
                                 execvp(beegYoshi[0][0], beegYoshi[0]);
                                 return 0;
                             default: 
                                 break;
                         };
                     }
+                    
                 }
                 //reap children and close fds
                 if(close(pfd[0]) == -1 || close(pfd[1]) == -1)
@@ -138,11 +138,105 @@ int main()
                     printf("Parent had error closing stdin and stdout");
                     exit(1);
                 }
+                
                 while(wait(NULL) != -1){
-
                 };
                 break;
+            
             default:
+                //create ptr to pfd's of size 2
+                int pfdN[pipeCounter][2];
+                int i;
+                //Initialize all pfd ptrs to their respective pipes
+                for(i = 0; i < pipeCounter; i++)
+                {
+                    pipe(pfdN[i]);
+                }
+                
+                //Main loop for dealing with fd ptrs
+                for(i = 0; i < (pipeCounter + 1); i++)
+                {
+                    if(i == 0)
+                        //Beginning
+                        beginning.isBeginning = 1;
+                    else if(i > 0 && i < pipeCounter - 1)
+                        //Middle
+                        beginning.isBeginning = 2;
+                    else
+                        //End
+                        beginning.isBeginning = 0;
+
+                    //Call Fork
+                    pid = fork();
+                    if(pid == -1)
+                    {
+                        printf("Error creating child process\n");
+                        exit(1);
+                    }
+                    //Check for child process
+                    if(pid == 0)
+                    {
+                        switch(beginning.isBeginning)
+                        {
+                            case 0:
+                                dup2(pfdN[i][0], 0);
+                                for(int i = 0; i < pipeCounter; i++)
+                                {
+                                    if(close(pfdN[i][0]) == -1 || close(pfdN[i][1]) == -1)
+                                    {
+                                        printf("Error closing pfdN from End process\n");
+                                        strerror(errno);
+                                        exit(1);
+                                    }
+                                        
+                                }
+                                execvp(beegYoshi[i][0], beegYoshi[i]);
+                                return 0;
+                            case 1:
+                                dup2(pfdN[i][1], 1);
+                                for(int i = 0; i < pipeCounter; i++)
+                                {
+                                    if(close(pfdN[i][0]) == -1 || close(pfdN[i][1]) == -1)
+                                    {
+                                        printf("Error closing pfdN from beginning process\n");
+                                        strerror(errno);
+                                        exit(1);
+                                    }
+                                        
+                                }
+                                execvp(beegYoshi[i][0], beegYoshi[i]);
+                                return 0;
+                            case 2:
+                                dup2(pfdN[i - 1][0], 0);
+                                dup2(pfdN[i][1], 1);
+                                for(int i = 0; i < pipeCounter; i++)
+                                {
+                                    if(close(pfdN[i][0]) == -1 || close(pfdN[i][1]) == -1)
+                                    {
+                                        printf("Error closing pfdN from between process\n");
+                                        strerror(errno);
+                                        exit(1);
+                                    }
+                                        
+                                }
+                                execvp(beegYoshi[i][0], beegYoshi[i]);
+                                return 0;
+                        };
+                    }
+                  
+                }
+                for(int i = 0; i < pipeCounter; i++)
+                {
+                    if(close(pfdN[i][0]) == -1 || close(pfdN[i][1]) == -1)
+                    {
+                        printf("Error closing pfdN from parent process\n");
+                        strerror(errno);
+                        exit(1);
+                    }
+                            
+                }
+                while(wait(NULL) != -1){
+                };
                 break;
         };
 
@@ -152,7 +246,14 @@ int main()
 }
 
 
-
+void closePfd(int pfd[][2], int pipeCounter)
+{
+    for(int i = 0; i < pipeCounter; i++)
+    {
+        if(close(pfd[i][0]) == -1 || close(pfd[i][1]) == -1)
+            printf("Error closing pfd2 from beginning process\n");
+    }
+}
 //Counting pipes function
 int checkForPipes(char** line_words)
 {
@@ -222,3 +323,5 @@ void storeInto(char** dest, char** src, int indexToStartAt, int countWords)
     }
     
 }
+
+
