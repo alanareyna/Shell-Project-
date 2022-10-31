@@ -9,43 +9,7 @@
 #include "constants.h"
 #include "parsetools.h"
 #include <stdbool.h>
-/*Andrew Notes:
 
-NOTE: It seems that the total number of fork() calls depends on our number of
-pipes(|) + 1. So we will need an incrementation of a pipe counter in terms of how
-many times it shows up in our line_words.
-
-Note: We might need to look into dynamic memory allocation for allocating enough memory for pidt array
-to be passed into pipe() function. This will be dependant on our actual pipe (|) counter that we will be updating 
-as we parse through our linwe_words.
-
-Note: Might need to separate line_words into separate array of strings (char**) that begin at 
-[0] index so that we can pass the execvp(assuming we have to use execvp in the first place)
-
-For 1 command Tests:
-    - We keep track of the number of strings that are going to be 
-      stored from our split_cd_line() function. If we find no pipe (|)
-      characters, i.e our pipe counter is equal to zero, that implies
-      that we should only have one command in our array. This should fork() once.
-      We can probably use execlp for one command.
-
-For 1 pipe:
-    - We can parse through the function and keep a counter of how many pipe (|) 
-      characters we have in line_words which is a single character array. If we only
-      have one pipe, that means we should have two valid commands on each side of
-      that singular pipe. Write end of first Fork() FD should go to write end of singular
-      pipe, Read end should go to stdin(default), and err should go to screen(default). Write end
-      of second Fork() goes to stdout(default), read end of FD at read end of singular pipe
-      and ERR fd remains in default screen. (This is all variable to change based on our actual commands
-      and what they can possibly be).
-
-For more than 1 pipe:
-     - Number of forks is going to be pipe(|) countter + 1. Logic of first and last Fork() FD's is  
-       similar to our logic in "1 command tests", everything in between will be similar to the logic
-       in "For 1 pipe". 
-       
-
-*/
 struct{
     int isBeginning;
 }beginning = {1};
@@ -147,6 +111,11 @@ int main()
                 //create ptr to pfd's of size 2
                 int pfdN[pipeCounter][2];
                 int i;
+                // int pfd1[2];
+                // int pfd2[2];
+                // pipe(pfd1);
+                // pipe(pfd2);
+                
                 //Initialize all pfd ptrs to their respective pipes
                 for(i = 0; i < pipeCounter; i++)
                 {
@@ -156,18 +125,20 @@ int main()
                 //Main loop for dealing with fd ptrs
                 for(i = 0; i < (pipeCounter + 1); i++)
                 {
+                    
                     if(i == 0)
                         //Beginning
                         beginning.isBeginning = 1;
-                    else if(i > 0 && i < pipeCounter - 1)
+                    else if(i > 0 && i < pipeCounter)
                         //Middle
                         beginning.isBeginning = 2;
                     else
                         //End
                         beginning.isBeginning = 0;
-
+                    
                     //Call Fork
                     pid = fork();
+                    
                     if(pid == -1)
                     {
                         printf("Error creating child process\n");
@@ -178,63 +149,28 @@ int main()
                     {
                         switch(beginning.isBeginning)
                         {
+                            
                             case 0:
-                                dup2(pfdN[i][0], 0);
-                                for(int i = 0; i < pipeCounter; i++)
-                                {
-                                    if(close(pfdN[i][0]) == -1 || close(pfdN[i][1]) == -1)
-                                    {
-                                        printf("Error closing pfdN from End process\n");
-                                        strerror(errno);
-                                        exit(1);
-                                    }
-                                        
-                                }
+                                dup2(pfdN[i - 1][0], 0);
+                                closePfd(pfdN, pipeCounter);
                                 execvp(beegYoshi[i][0], beegYoshi[i]);
                                 return 0;
                             case 1:
                                 dup2(pfdN[i][1], 1);
-                                for(int i = 0; i < pipeCounter; i++)
-                                {
-                                    if(close(pfdN[i][0]) == -1 || close(pfdN[i][1]) == -1)
-                                    {
-                                        printf("Error closing pfdN from beginning process\n");
-                                        strerror(errno);
-                                        exit(1);
-                                    }
-                                        
-                                }
+                                closePfd(pfdN, pipeCounter);
                                 execvp(beegYoshi[i][0], beegYoshi[i]);
                                 return 0;
                             case 2:
                                 dup2(pfdN[i - 1][0], 0);
                                 dup2(pfdN[i][1], 1);
-                                for(int i = 0; i < pipeCounter; i++)
-                                {
-                                    if(close(pfdN[i][0]) == -1 || close(pfdN[i][1]) == -1)
-                                    {
-                                        printf("Error closing pfdN from between process\n");
-                                        strerror(errno);
-                                        exit(1);
-                                    }
-                                        
-                                }
+                                closePfd(pfdN, pipeCounter);
                                 execvp(beegYoshi[i][0], beegYoshi[i]);
                                 return 0;
                         };
                     }
                   
                 }
-                for(int i = 0; i < pipeCounter; i++)
-                {
-                    if(close(pfdN[i][0]) == -1 || close(pfdN[i][1]) == -1)
-                    {
-                        printf("Error closing pfdN from parent process\n");
-                        strerror(errno);
-                        exit(1);
-                    }
-                            
-                }
+                closePfd(pfdN, pipeCounter);
                 while(wait(NULL) != -1){
                 };
                 break;
@@ -251,7 +187,11 @@ void closePfd(int pfd[][2], int pipeCounter)
     for(int i = 0; i < pipeCounter; i++)
     {
         if(close(pfd[i][0]) == -1 || close(pfd[i][1]) == -1)
+        {
             printf("Error closing pfd2 from beginning process\n");
+            exit(1);
+        }
+            
     }
 }
 //Counting pipes function
