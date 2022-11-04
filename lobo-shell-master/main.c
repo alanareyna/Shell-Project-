@@ -38,11 +38,6 @@ int main()
     //Counts # of words between pipes
     int wordCount;
     
-    //Used to hold names of files depending on redirection operators
-    //Notes for redirection possibly?: 
-    //  1) the input or output file is going to be on the right side of the operator
-    //  2) have to look into open and close function
-    //  3) need to find right O_ commands per operation
 
 
     while( fgets(line, MAX_LINE_CHARS, stdin) ) 
@@ -54,13 +49,6 @@ int main()
         //Number of pipes in our entire command line
         pipeCounter = checkForPipes(line_words);
         bool redirection = false;
-        /*
-        - Loop check for > or < or <<
-        - if no pipe and one <
-        - open right most thing after 
-        - open(rightmost before null, O_WRONLY | O_CREATE, 0777)
-        */
-
 
         int i;
         //num_strings is number of strings in entire command minus the number of pipes in our entire cmd line
@@ -86,6 +74,7 @@ int main()
                 {
                     //stores command before redirection operator
                     arrForRedirection = wordsBeforeRedirection(line_words);
+                    //Does redirection file description rewiring
                     doRedirection(arrForRedirection, line_words);
                 }
                 
@@ -253,6 +242,7 @@ char** wordsBeforeRedirection(char **line_words)
 void doRedirection(char **arrForRedirection, char **line_words)
 {
     int in;
+    int outOrAppend;
     for(int i = 0; line_words[i] != NULL; i++)
     {
         //input redirection
@@ -261,8 +251,22 @@ void doRedirection(char **arrForRedirection, char **line_words)
             in = open(line_words[i + 1], O_RDONLY, 0);
             dup2(in, 0);
             close(in);
-            break;
+            
         }
+        if(strcmp(line_words[i], ">") == 0)
+        {
+            outOrAppend = open(line_words[i + 1], O_CREAT | O_WRONLY, 0664);
+            dup2(outOrAppend, 1);
+            close(outOrAppend);
+            
+        }
+        else if(strcmp(line_words[i], ">>") == 0)
+        {
+            outOrAppend = open(line_words[i + 1], O_APPEND | O_CREAT | O_WRONLY, 0664);
+            dup2(outOrAppend, 1);
+            close(outOrAppend);
+        }
+
     }
     execvp(arrForRedirection[0], arrForRedirection);
 }
