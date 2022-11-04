@@ -10,30 +10,41 @@
 #include "parsetools.h"
 #include <stdbool.h>
 
-// struct{
-//     int isBeginning;
-// }beginning = {1};
+
 
 //Functions prototypes
 int checkForPipes(char** line_words);
-char*** storeAllCommands(char** line_words, int pipe_counter);
-void storeInto(char** dest, char** src, int indexToStartAt, int countWords);
 void closePfd(int pfd[][2], int pipeCounter);
 char **createTempArray(char **line_words, int wordCount, int *indexesToStart, int index);
 int *whichIdxToStart(char **line_words, int pipeCounter);
 int countWordsBetweenPipes(char **line_words, int *indexesToStart, int index);
+char** wordsBeforeRedirection(char **line_words);
+void doRedirection(char **arrForRedirection, char **line_words);
 int main()
 {
     // Buffer for reading one line of input
     char line[MAX_LINE_CHARS];
     // holds separated words based on whitespace
     char* line_words[MAX_LINE_WORDS + 1];
-    // char*** commandsArray;
+    
+    //Fork Variable
     pid_t pid;
+
     int pipeCounter = 0;
+
+    //Array of strings used to hold commands separated by pipes
     char** arrForChild;
+    char** arrForRedirection;
+    //Counts # of words between pipes
     int wordCount;
-    // or some other input error occurs
+    
+    //Used to hold names of files depending on redirection operators
+    //Notes for redirection possibly?: 
+    //  1) the input or output file is going to be on the right side of the operator
+    //  2) have to look into open and close function
+    //  3) need to find right O_ commands per operation
+
+
     while( fgets(line, MAX_LINE_CHARS, stdin) ) 
     {
         //line is char Array
@@ -42,20 +53,52 @@ int main()
 
         //Number of pipes in our entire command line
         pipeCounter = checkForPipes(line_words);
-        
+        bool redirection = false;
+        /*
+        - Loop check for > or < or <<
+        - if no pipe and one <
+        - open right most thing after 
+        - open(rightmost before null, O_WRONLY | O_CREATE, 0777)
+        */
+
+
+        int i;
         //num_strings is number of strings in entire command minus the number of pipes in our entire cmd line
         int num_strings = num_words - pipeCounter;
-        
         
         //Check for no pipes
         if(pipeCounter == 0)
         {
             if(pid = fork() == 0)
             {
-                execvp(line_words[0], line_words);
-                return 0;
+                for(i = 0; line_words[i] != NULL; i++)
+                {
+                    if(strcmp(line_words[i], ">") == 0
+                    || strcmp(line_words[i], "<") == 0
+                    || strcmp(line_words[i], ">>") == 0)
+                    {
+                        redirection = true;
+                        break;
+                    }
+                    
+                }
+                if(redirection)
+                {
+                    //stores command before redirection operator
+                    arrForRedirection = wordsBeforeRedirection(line_words);
+                    doRedirection(arrForRedirection, line_words);
+                }
+                
+                
+                else
+                {
+                    execvp(line_words[0], line_words);
+                    return 0;
+                }
                 
             }
+            while(wait(NULL) != -1){
+            };
         }
         else if(pipeCounter > 0)
         {
@@ -69,32 +112,22 @@ int main()
             {
 
                 wordCount = countWordsBetweenPipes(line_words, indexesToStart, i);
-                // printf("%d, ", wordCount);
-                // exit(1);
                 arrForChild = createTempArray(line_words, wordCount, indexesToStart, i);
-                // for(int x = 0; arrForChild[x] != NULL; x++)
-                //     printf("%s, ", arrForChild[x]);
-                // printf("\n");
-                // free(arrForChild);
-                // //fork child process
+
                 if(pid = fork() == 0)
                 {
                     if(i == 0)
                     {
-                        //printf("At beginning\n");
                         dup2(pfdN[i][1], 1);
                         
                     }
                     else if(i == pipeCounter)
                     {
-                        //printf("At end\n");
                         dup2(pfdN[i - 1][0], 0);
                         
                     }
                     else if((i != 0) && i < pipeCounter)
                     {
-                        //printf("%d, ", i);
-                        //printf("At middle command\n");
                         dup2(pfdN[i - 1][0], 0);
                         dup2(pfdN[i][1], 1);
                         
@@ -115,9 +148,6 @@ int main()
     return 0;
 
 }
-
-    
-
 
 
 
@@ -160,7 +190,6 @@ char **createTempArray(char **line_words, int wordCount, int *indexesToStart, in
         temp[words] = malloc(sizeof(char*) *  1024);
     
     for(; i < wordCount; i++, j++)
-        // printf("%s, ", line_words[j]);
         strcpy(temp[i], line_words[j]);
     
     //Null terminate the strings or crash
@@ -195,3 +224,45 @@ int checkForPipes(char** line_words)
     return returnPipes;
 }
 
+char** wordsBeforeRedirection(char **line_words)
+{
+    int count = 0;
+    int i = 0;
+    while(line_words[i] != NULL)
+    {
+        if(strcmp(line_words[i], ">") == 0
+        || strcmp(line_words[i], "<") == 0
+        || strcmp(line_words[i], ">>") == 0)
+            break;
+        count++;
+        i++;
+    }
+    char **temp = malloc(sizeof(char**) * count);
+    for(int x = 0; x < count; x++)
+        temp[x] = malloc(sizeof(char*) * 1024);
+    
+    i = 0;
+    for(; i < count; i++)
+        strcpy(temp[i], line_words[i]);
+    temp[i] = 0x0;
+    return temp;
+
+
+}
+
+void doRedirection(char **arrForRedirection, char **line_words)
+{
+    int in;
+    for(int i = 0; line_words[i] != NULL; i++)
+    {
+        //input redirection
+        if(strcmp(line_words[i], "<") == 0)
+        {
+            in = open(line_words[i + 1], O_RDONLY, 0);
+            dup2(in, 0);
+            close(in);
+            break;
+        }
+    }
+    execvp(arrForRedirection[0], arrForRedirection);
+}
