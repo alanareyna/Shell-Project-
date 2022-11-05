@@ -20,6 +20,8 @@ int *whichIdxToStart(char **line_words, int pipeCounter);
 int countWordsBetweenPipes(char **line_words, int *indexesToStart, int index);
 char** wordsBeforeRedirection(char **line_words);
 void doRedirection(char **arrForRedirection, char **line_words);
+bool checkForRedirection(char **line_words);
+
 int main()
 {
     // Buffer for reading one line of input
@@ -57,25 +59,19 @@ int main()
         //Check for no pipes
         if(pipeCounter == 0)
         {
+            // for(int i = 0; line_words[i] != NULL; i++)
+            //     printf("%s, ", line_words[i]);
+            // exit(1);
             if(pid = fork() == 0)
             {
-                for(i = 0; line_words[i] != NULL; i++)
-                {
-                    if(strcmp(line_words[i], ">") == 0
-                    || strcmp(line_words[i], "<") == 0
-                    || strcmp(line_words[i], ">>") == 0)
-                    {
-                        redirection = true;
-                        break;
-                    }
-                    
-                }
+                redirection = checkForRedirection(line_words);
                 if(redirection)
                 {
                     //stores command before redirection operator
                     arrForRedirection = wordsBeforeRedirection(line_words);
                     //Does redirection file description rewiring
                     doRedirection(arrForRedirection, line_words);
+                    execvp(arrForRedirection[0], arrForRedirection);
                 }
                 
                 
@@ -100,26 +96,55 @@ int main()
             for(int i = 0; i < pipeCounter + 1; i++)
             {
 
+                //Count words between pipes through each iteration
                 wordCount = countWordsBetweenPipes(line_words, indexesToStart, i);
+
+                //Create the command to execute between each pipe on each iteration
                 arrForChild = createTempArray(line_words, wordCount, indexesToStart, i);
+                redirection = false;
+                redirection = checkForRedirection(arrForChild);
 
                 if(pid = fork() == 0)
                 {
                     if(i == 0)
                     {
+                        if(redirection)
+                        {
+                            arrForRedirection = wordsBeforeRedirection(arrForChild);
+                            doRedirection(arrForChild, line_words);
+                        }
+                            
                         dup2(pfdN[i][1], 1);
                         
                     }
                     else if(i == pipeCounter)
                     {
+                        if(redirection)
+                        {
+                            arrForRedirection = wordsBeforeRedirection(arrForChild);
+                            doRedirection(arrForChild, line_words);
+                        }
+                            
+                    
                         dup2(pfdN[i - 1][0], 0);
                         
                     }
                     else if((i != 0) && i < pipeCounter)
                     {
+                        if(redirection)
+                        {
+                            arrForRedirection = wordsBeforeRedirection(arrForChild);
+                            doRedirection(arrForChild, line_words);
+                        }
                         dup2(pfdN[i - 1][0], 0);
                         dup2(pfdN[i][1], 1);
                         
+                    }
+                    if(redirection)
+                    {
+                        closePfd(pfdN, pipeCounter);
+                        execvp(arrForRedirection[0], arrForRedirection);
+                        return 0;
                     }
                     closePfd(pfdN, pipeCounter);
                     execvp(arrForChild[0], arrForChild);
@@ -134,6 +159,8 @@ int main()
         }
        
     };
+    free(arrForRedirection);
+    free(arrForChild);
     return 0;
 
 }
@@ -239,6 +266,21 @@ char** wordsBeforeRedirection(char **line_words)
 
 }
 
+bool checkForRedirection(char **line_words)
+{
+    
+    for(int i = 0; line_words[i] != NULL; i++)
+    {
+        if(strcmp(line_words[i], ">") == 0
+        || strcmp(line_words[i], "<") == 0
+        || strcmp(line_words[i], ">>") == 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void doRedirection(char **arrForRedirection, char **line_words)
 {
     int in;
@@ -268,5 +310,5 @@ void doRedirection(char **arrForRedirection, char **line_words)
         }
 
     }
-    execvp(arrForRedirection[0], arrForRedirection);
+    
 }
