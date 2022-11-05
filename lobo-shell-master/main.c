@@ -21,7 +21,8 @@ int countWordsBetweenPipes(char **line_words, int *indexesToStart, int index);
 char** wordsBeforeRedirection(char **line_words);
 void doRedirection(char **arrForRedirection, char **line_words);
 bool checkForRedirection(char **line_words);
-
+bool checkForQuotes(char **line_words);
+char **quotingParse(char **line_words);
 int main()
 {
     // Buffer for reading one line of input
@@ -37,6 +38,7 @@ int main()
     //Array of strings used to hold commands separated by pipes
     char** arrForChild;
     char** arrForRedirection;
+    char** quotedCommand;
     //Counts # of words between pipes
     int wordCount;
     
@@ -51,7 +53,7 @@ int main()
         //Number of pipes in our entire command line
         pipeCounter = checkForPipes(line_words);
         bool redirection = false;
-
+        bool existsQuote = false;
         int i;
         //num_strings is number of strings in entire command minus the number of pipes in our entire cmd line
         int num_strings = num_words - pipeCounter;
@@ -59,12 +61,20 @@ int main()
         //Check for no pipes
         if(pipeCounter == 0)
         {
-            // for(int i = 0; line_words[i] != NULL; i++)
-            //     printf("%s, ", line_words[i]);
-            // exit(1);
+            
             if(pid = fork() == 0)
             {
+                existsQuote = checkForQuotes(line_words);
+                if(existsQuote)
+                {
+                    quotedCommand = quotingParse(line_words);
+                    // printf("%s, ", quotedCommand[1]);
+                    execvp(quotedCommand[0], quotedCommand);
+                    return 0;
+                } 
+
                 redirection = checkForRedirection(line_words);
+                
                 if(redirection)
                 {
                     //stores command before redirection operator
@@ -161,6 +171,7 @@ int main()
     };
     free(arrForRedirection);
     free(arrForChild);
+    free(quotedCommand);
     return 0;
 
 }
@@ -311,4 +322,101 @@ void doRedirection(char **arrForRedirection, char **line_words)
 
     }
     
+}
+
+bool checkForQuotes(char **line_words)
+{
+    for(int i = 0; line_words[i] != NULL; i++)
+    {
+        for(int j = 0; line_words[i][j] != '\0'; j++)
+        {
+            if(line_words[i][j] == '"')
+                return true;
+        }
+    }
+    return false;
+}
+
+char **quotingParse(char **line_words)
+{
+    int i;
+    int j;
+    int wordCount = 0;
+    int quotecount = 0;
+    int customIterator = 0;
+    char** newQuoteParseCommand;
+    char tempString[MAX_LINE_CHARS] = "";
+    
+    //Before concatenating, find how much space we need to dynamically allocate for new command string with 
+    //quote escaping
+    for(i = 0; line_words[i] != NULL; i++)
+    {
+        for(j = 0; line_words[i][j] != '\0'; j++)
+        {
+            if(line_words[i][j] == '"')
+            {
+                quotecount++;
+                break;
+            }
+            
+        }
+        if(quotecount == 0)
+            wordCount++;
+        else if(quotecount == 2)
+            wordCount++;
+    }
+
+    
+    //Allocate proper memory size
+    newQuoteParseCommand = malloc(sizeof(char**) * wordCount);
+    for(i = 0; i < wordCount; i++)
+        newQuoteParseCommand[i] = malloc(sizeof(char*) * 1024);
+
+    quotecount = 0;
+
+    // //Concatenate without quotes
+    for(i = 0; line_words[i] != NULL; i++)
+    {
+        for(j = 0; line_words[i][j] != '\0'; j++)
+        {
+            //If we find a quote, left shift all chars to essentially erase it.
+            if(line_words[i][j] == '"')
+            {
+                quotecount++;
+                while(line_words[i][j] != '\0')
+                {   
+                    line_words[i][j] = line_words[i][j + 1];
+                    j++;
+                }
+                
+            }
+            
+        }
+        
+
+    //     //If we haven't found quote, then copy linewords string to new adjusted command string to be returned
+        if(quotecount == 0)
+            strcpy(newQuoteParseCommand[i], line_words[i]);
+        
+        
+        else if(quotecount == 1)
+        {
+            //printf("%s, ", line_words[i]);
+            strcat(tempString, line_words[i]);
+            
+            strcat(tempString, " ");
+            printf("%s,", tempString);
+        }
+        else
+        {
+            strcat(tempString, line_words[i]);
+            customIterator++;
+            strcpy(newQuoteParseCommand[customIterator], tempString);
+        }
+    
+    }
+    
+    printf("%s, ", tempString);
+    newQuoteParseCommand[customIterator + 1] = 0x0;
+    return newQuoteParseCommand;
 }
