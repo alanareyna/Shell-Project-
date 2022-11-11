@@ -10,17 +10,23 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Andrew Avola <avolaa@sonoma.edu>
+Amit Deb <deb@sonoma.edu>
+Alana Reyna <reyna@sonoma.edu>
+Kallista Stamas <stamask@sonoma.edu>
 
 ---- PRELIMINARIES ----
 
 >> If you have any preliminary comments on your submission or
 >> bug notes, please give them here.
 
+N/A
+
 >> Please cite any offline or online sources you consulted while
 >> preparing your submission, other than man pages, course
 >> text, lecture notes, and course staff.
+
+N/A
 
 
                LOBO SHELL
@@ -37,6 +43,10 @@ FirstName LastName <email@domain.example>
 >>  (ii) foo < bar
 >> (iii) foo >> bar
 
+(i): (output redirection) open(bar, O_CREAT | O_WRONLY, 0664);
+(ii): (input redirection) open(bar, O_RDONLY, 0);
+(iii): (Append redirection) open(bar, O_APPEND | O_CREAT | O_WRONLY, 0664);
+
 >> A2: Create scenarios to test and describe how bash behaves in
 >> each of these scenarios:
 >>   (i) foo < bar, when "bar" does not exist?
@@ -45,6 +55,11 @@ FirstName LastName <email@domain.example>
 >>  (iv) foo > bar, when "bar" cannot be created?
 >> In each case, give the commands you used to create and evaluate 
 >> the scenario.
+
+(i): bash: bar: no such file or directory
+(ii): bash: bar: permission denied 
+(iii): bash: bar: permission denied 
+(iv): bash: bar: file not created 
 
 >> A3: Unix pipes allow synchronization among processes to facilitate
 >> interprocess communication (IPC). Consider a pipeline of arbitrary
@@ -56,11 +71,18 @@ FirstName LastName <email@domain.example>
 >> What prior-created pipes would be used with process P[i]?
 >> What new pipes need to be created to set up P[i]'s pipeline?
 
+The pipes found before P[i] (0-i) will be piped to P[i]. There needs to be a creation of pipes
+from P[i] to P[i+1] (keep going until we reach P[n]) to set up P[i]'s pipeline. 
+
 ---- DATA STRUCTURES ----
 
 >> A4: Copy here the declaration of each new `struct',
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 2--25 words.
+
+We do not have any structs, struct members, global, static variables, or enumerations in the code.
+
+
 
 ---- FUNCTIONS ----
 
@@ -68,11 +90,140 @@ FirstName LastName <email@domain.example>
 >> you have introduced to support this portion of the project.
 >> Use the Google Style Guide for function documentation.
 
+
+/**
+ * @brief 
+ * int checkForPipes(char** line_words): Counts the total number of pipes present in line_words
+ * @param: line_words 
+ * Entire command line of strings after the user presses enter
+ * @return: int 
+ * Returns number of pipes in line_words to caller
+ */
+
+/**
+ * @brief 
+ * void closePfd(int pfd[][2], int pipeCounter): 
+ * Function to handle closing all active file descriptors in children and parent process
+ * @param pfd 
+ * Pointer to pfd variables from caller in main
+ * @param pipeCounter 
+ * Used as an iterator to close all active file descriptors for pipes
+ */
+
+ /**
+ * @brief 
+ * char **createTempArray(char **line_words, int wordCount, int *indexesToStart, int index):
+ * Creates an array of pointers to strings that will be used to hold the current command
+ * we will be executing, excluding pipes
+ * @param line_words 
+ * Entire command line of strings after the user presses enter
+ * @param wordCount 
+ * Number of words between pipes
+ * @param indexesToStart 
+ * Array that holds the index we will be starting from when parsing and storing current command
+ * @param index 
+ * Uses 'i' from for loop in main that corresponds to which command in order from left to right
+ * in the command we will be storing and executing
+ * @return char** 
+ * Returns dynamically allocated array of strings, which stores entire command to be executed
+ * before file descriptor processing
+ */
+
+
+/**
+ * @brief 
+ * char** wordsBeforeRedirection(char **line_words): 
+ * Function that is used to count and store the number of words that come before a 
+ * redirection operator inside of line_words
+ * @param: line_words 
+ * Entire command line of strings after the user presses enter
+ * @return: char** 
+ * Returns dynamically allocated array of strings that will hold the command that comes
+ * before the redirection operator in line_words
+ */
+
+/**
+ * @brief 
+ * bool checkForRedirection(char **line_words): Checks if line_words has a redirection operator present
+ * @param line_words 
+ * Entire command line of strings after the user presses enter
+ * @return true 
+ * Returns true if a redirection operator is found in line_words
+ * @return false 
+ * Returns false if a redirection operator is not found in line_words
+ */
+
+ /**
+ * @brief 
+ * void doRedirection(char **line_words): Function that handles the file descriptor processing when dealing with a command that 
+ * uses redirection
+ * @param line_words 
+ * Entire command line of strings after the user presses enter
+ */
+
+ /**
+ * @brief 
+ * bool checkForQuotes(char **line_words): Checks if line_words has a double quote (") present in entirety of command line string
+ * @param line_words 
+ * Entire command line of strings after the user presses enter
+ * @return true 
+ * Returns true if (") is found
+ * @return false 
+ * Returns false if (") is not found
+ */
+
+/**
+ * @brief 
+ * char **quotingParse(char **line_words): Parses through all of line_words and detects when we run into a double quote character (").
+ * Once one is found, the current string that is being parsed through in line_words at some index 'i'
+ * will have all of its characters left shifted to essentially delete the (") character while maintaining
+ * proper string structure. A new temporary string (tempString) will be used to concatenate all separate strings
+ * from line_words into itself until a second (") is found. Everything inbetween these double quotes will now 
+ * be considered a singular string instead of multiple separate ones, and will be stored into a new corrected
+ * command string during iteration.
+ * @param line_words 
+ * Entire command line of strings after the user presses enter
+ * @return char** 
+ * Newly corrected array of strings to be returned to caller in main for quotation escape execution
+ */
+
+ /**
+ * @brief 
+ * int countWordsBetweenPipes(char **line_words, int *indexesToStart, int index): 
+ * Function to cound words between pipes excluding the pipe
+ * @param line_words
+ * Entire command line of strings after the user presses enter
+ * @param indexesToStart 
+ * Indicates where we will begin our counting from in line_words each 
+ * time the function is called
+ * @param index 
+ * Used to dereference indexes to start which is an array that stores all pipe + 1 indexes in line_words
+ * @return int
+ * Returns word count between pipes to user
+ */
+
+/**
+ * @brief 
+ * Loops through entirety of line_words and will store index values in a dynamically
+ * allocated integer array where we will start our index into line_words when counting
+ * the number of words between each pipe. 
+ * @param line_words 
+ * Entire command line of strings after the user presses enter
+ * @param pipeCounter 
+ * How many pipes we have counted in the entirety of line_words
+ * @return int* 
+ * Returns dynamically allocated integer array that stores all indexes of where we will begin our
+ * command parsing. This is so we can deal with excluding our pipes in line_words
+ */
+
+
 ---- ALGORITHMS ----
 
 >> A6: Briefly describe how the functions (from A5) are called
 >> when your shell is processing the user-entered commands:
 >>   foo 1 2 | bar 3 4
+
+
 
 >> A7: Briefly describe your approch for reaping child processes. When do
 >> you reap, and how much do you reap at a time? Would it be possible to
