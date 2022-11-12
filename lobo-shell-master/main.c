@@ -23,6 +23,7 @@ void doRedirection(char **line_words);
 bool checkForRedirection(char **line_words);
 bool checkForQuotes(char **line_words);
 char **quotingParse(char **line_words);
+void syserror(const char *);
 
 int main()
 {
@@ -79,6 +80,7 @@ int main()
                     //Parse command to concatenate entire string delimited by double quotes
                     quotedCommand = quotingParse(line_words);
                     execvp(quotedCommand[0], quotedCommand);
+                    syserror( "Could not exec" );
                     return 0;
                 } 
 
@@ -92,16 +94,22 @@ int main()
                     //Does redirection file descriptor rewiring
                     doRedirection(line_words);
                     execvp(arrForRedirection[0], arrForRedirection);
+                    syserror( "Could not exec" );
                 }
                 //If no detection of redirection and quoting, execute singular no pipe command
                 else
                 {
                     execvp(line_words[0], line_words);
+                    syserror( "Could not exec" );
                     return 0;
                 }
                 
             }
-
+            else if(pid < 0)
+            {
+                syserror( "Fork failed" );
+                break;
+            }
             //Reap children
             while(wait(NULL) != -1){
             };
@@ -113,7 +121,11 @@ int main()
             
             //Initialize pfd variables to their respective pipes in ascending order
             for(int j = 0; j < pipeCounter; j++)
-                pipe(pfdN[j]);
+                if(pipe(pfdN[j]) == -1)
+                {
+                    syserror( "Could not create a pipe" );
+                }
+
 
             //Pointer to dynamically allocated integer array that stores which index we are starting our
             //command storage at. (0, pipe index + 1...etc)
@@ -210,19 +222,27 @@ int main()
                     {
                         closePfd(pfdN, pipeCounter);
                         execvp(quotedCommand[0], quotedCommand);
+                        syserror("Could not exec");
                         return 0;
                     }
                     if(redirection)
                     {
                         closePfd(pfdN, pipeCounter);
                         execvp(arrForRedirection[0], arrForRedirection);
+                        syserror("Could not exec");
                         return 0;
                     }
                     //Execs command that aren't redirection commands
                     closePfd(pfdN, pipeCounter);
                     execvp(arrForChild[0], arrForChild);
+                    syserror("Could not exec");
                     return 0;
                    
+                }
+                else if(pid < 0)
+                {
+                    syserror( "Fork failed" );
+                    break;
                 }
             }
             //Close parents FD
@@ -231,6 +251,7 @@ int main()
             };
             
         }
+
        
     };
 
@@ -652,4 +673,21 @@ char **quotingParse(char **line_words)
     
     newQuoteParseCommand[customIterator + 1] = 0x0;
     return newQuoteParseCommand;
+}
+
+
+/**
+ * @brief 
+ * This function written by Dr. Gondree is to exit the program with a syscall
+ * and the error message passed.
+ * @param s 
+ * Error string to be outputed if called
+ */
+
+void syserror(const char *s)
+{
+    extern int errno;
+    fprintf(stderr, "%s\n", s);
+    fprintf(stderr, " (%s)\n", strerror(errno));
+    exit(1);
 }
