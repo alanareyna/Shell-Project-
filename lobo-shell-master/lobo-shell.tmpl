@@ -223,12 +223,30 @@ We do not have any structs, struct members, global, static variables, or enumera
 >> when your shell is processing the user-entered commands:
 >>   foo 1 2 | bar 3 4
 
+Firstly, checkForPipes() will be called and line_words will be parsed, returning
+the total amount of pipes in the entire command. Since this command has one pipe,
+the next function to be called will be whichIdxToStart(). This function's role is to
+return an integer array that stores the indexes of where to begin parsing our line_words
+command, essentially skipping around the pipe. For this particular example command given to
+us, it will store index 0 (foo) and index 4 (bar). Next, createTempArray() is called
+and this will return the commands that are present in front, between, or at the end
+of our pipes. For this example, "foo 1 2" will be stored in the first iteration, and
+"bar 3 4" will be stored in the next. Some functions that do some processing to check for 
+redirection or quoting will be called along the way. These will be checkForQuotes() and 
+checkForRedirection(). These functions will return false for our particular example,
+so the functions that process quoting and redirection (quotingParse(), wordsBeforeRedirection(), and doRedirection())
+will NOT be called. 
 
 
 >> A7: Briefly describe your approch for reaping child processes. When do
 >> you reap, and how much do you reap at a time? Would it be possible to
 >> reap children earlier than your current implementation and, if so,
 >> what situations might that benefit?
+
+In our implementation, our parent will reap the child processes at the earliest
+possible time. The total amount of children processes that are reaped at a time
+is equivalent to the amount of pipes in the program + 1(total amount of commands)
+entered by user in the command line.  
 
 ---- RATIONALE ----
 
@@ -237,10 +255,43 @@ We do not have any structs, struct members, global, static variables, or enumera
 >> (http://git.savannah.gnu.org/cgit/bash.git/) multithreaded?
 >> What did you grep to determine the answer?
 
+No our shell doesnt requires multithreading or any related synchronization primitives.
+No the bash shell isnt multithreaded. We found this out by grepping fork, thread, 
+single, and multithread. The only result we got back was from fork. 
+We can conclude that the bash has no mention of threading anywhere thus it 
+does not use threading.
+
 >> A9: Develop a new test, not covered by existing tests. Provide the 
 >> code implementing that test. When possible, follow the format of 
 >> existing tests. Explain what functionality it tests and how it goes 
 >> beyond the provided tests.
+
+
+This test is to see if our existing code will handle escaping double quotes
+that are leading and ending with '\"'. The current quoting test only checks 
+if we can concatenate whatever is encased in double quotes into a singular
+string. This test goes past that and checks if we can ignore the escape
+characters during parsing. After having ignored those characters, we remove them
+later while still keeping track of the outer encasing double quotes.
+
+
+OUT=tests/output/`basename ${0%.sh}`.out
+EOUT=tests/output/`basename ${0%.sh}`.eout
+rm -f $OUT $EOUT tests/output/shouldnt-exist
+
+./lobo_shell.x >$OUT << 'EOF'
+echo "hello \"hi\" hello"
+EOF
+
+echo "hello \"hi\" hello" > $EOUT
+
+if [ -f tests/output/shouldnt-exist* ]; then 
+    echo "TEST FAILED $0"
+    rm -f tests/output/shouldnt-exist*
+    exit
+fi
+
+diff $OUT $EOUT && echo "PASSED $0" || echo "TEST FAILED $0"
 
 
 
