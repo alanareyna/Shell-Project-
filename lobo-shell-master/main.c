@@ -121,13 +121,15 @@ int main()
         
             for(int i = 0; i < pipeCounter + 1; i++)
             {
-
+                
                 //Count words between pipes through each iteration
                 wordCount = countWordsBetweenPipes(line_words, indexesToStart, i);
 
                 //Create the command to execute between each pipe on each iteration
                 arrForChild = createTempArray(line_words, wordCount, indexesToStart, i);
 
+                existsQuote = false;
+                existsQuote = checkForQuotes(arrForChild);
                 //We will check every iteration if our newly formed command between pipes includes
                 //a redirection operator
                 redirection = false;
@@ -139,6 +141,13 @@ int main()
                     //First command before any pipes are reached
                     if(i == 0)
                     {
+                        if(existsQuote)
+                        {
+                            
+                            //Parse command to concatenate entire string delimited by double quotes
+                            quotedCommand = quotingParse(arrForChild);
+                            
+                        } 
                         if(redirection)
                         {
                             //Store command we need to use for redirection execvp
@@ -154,6 +163,12 @@ int main()
                     //End command 
                     else if(i == pipeCounter)
                     {
+                         if(existsQuote)
+                        {
+                            //Parse command to concatenate entire string delimited by double quotes
+                            quotedCommand = quotingParse(arrForChild);
+                            
+                        } 
                         if(redirection)
                         {
                             //Store command we need to use for redirection execvp
@@ -170,6 +185,12 @@ int main()
                     //All commands that are not beginning and end of pipes
                     else if((i != 0) && i < pipeCounter)
                     {
+                         if(existsQuote)
+                        {
+                            //Parse command to concatenate entire string delimited by double quotes
+                            quotedCommand = quotingParse(arrForChild);
+                            
+                        } 
                         if(redirection)
                         {
                             //Store command we need to use for redirection execvp
@@ -185,6 +206,12 @@ int main()
                     }
                     //Execs arrForRedirection which previously will be holding the command excluding
                     //the redirection operator
+                    if(existsQuote)
+                    {
+                        closePfd(pfdN, pipeCounter);
+                        execvp(quotedCommand[0], quotedCommand);
+                        return 0;
+                    }
                     if(redirection)
                     {
                         closePfd(pfdN, pipeCounter);
@@ -502,6 +529,7 @@ bool checkForQuotes(char **line_words)
  * from line_words into itself until a second (") is found. Everything inbetween these double quotes will now 
  * be considered a singular string instead of multiple separate ones, and will be stored into a new corrected
  * command string during iteration.
+ * This function will also handle escaped double quotes (\")
  * @param line_words 
  * Entire command line of strings after the user presses enter
  * @return char** 
@@ -522,15 +550,16 @@ char **quotingParse(char **line_words)
     //quote escaping
     for(i = 0; line_words[i] != NULL; i++)
     {
+        
         for(j = 0; line_words[i][j] != '\0'; j++)
         {
-            if(line_words[i][j] == '"')
+            if(line_words[i][j] == '"' && line_words[i][j-1] != '\\')
             {
                 quoteCount++;
-                break;
             }
             
         }
+        
         //If we don't have a double quotation character found yet, increment word count to accomodate
         //strings that are present outside of quotes
         if(quoteCount == 0)
@@ -540,7 +569,6 @@ char **quotingParse(char **line_words)
         else if(quoteCount == 2)
             wordCount++;
     }
-
     
     //Allocate proper memory size of new command string 
     newQuoteParseCommand = malloc(sizeof(char**) * wordCount);
@@ -552,40 +580,69 @@ char **quotingParse(char **line_words)
     //Concatenate without quotes
     for(i = 0; line_words[i] != NULL; i++)
     {
+       
         for(j = 0; line_words[i][j] != '\0'; j++)
         {
-            //If we find a quote, left shift all chars to essentially erase it
-            if(line_words[i][j] == '"')
+            
+            //If string is one of the outer double quotes
+            if((line_words[i][j] == '"') && (line_words[i][j - 1] != '\\'))
             {
+                
                 quoteCount++;
                 while(line_words[i][j] != '\0')
                 {   
                     line_words[i][j] = line_words[i][j + 1];
                     j++;
                 }
+                //Will check if string had two double quotes attatched to it and fix accordingly
+                if(line_words[i][strlen(line_words[i]) - 1] == '"' && line_words[i][strlen(line_words[i]) - 2] != '\\')
+                {
+                    quoteCount++;
+                    line_words[i][strlen(line_words[i]) - 1] = line_words[i][strlen(line_words[i])];
+                    
+                }
+                break;
                 
             }
-            
+            //Need to have logic for removing escape character from string
+            if(line_words[i][j] == '\\')
+            {
+                while(line_words[i][j] != '\0')
+                {   
+                    line_words[i][j] = line_words[i][j + 1];
+                    j++;
+                }
+                if(line_words[i][strlen(line_words[i]) - 2] == '\\')
+                {
+                    line_words[i][strlen(line_words[i]) - 2] = line_words[i][strlen(line_words[i]) - 1];
+                    line_words[i][strlen(line_words[i]) - 1] = line_words[i][strlen(line_words[i])];
+                }
+                break;
+            }
         }
         
 
         //If we haven't found quote, then copy linewords string to new adjusted command string to be returned
         if(quoteCount == 0)
+        {
             strcpy(newQuoteParseCommand[i], line_words[i]);
-        
+            customIterator = i;            
+        }
+            
         //If we are inside the body of double quotes, then keep concatenate every string in line_words to tempString
         //as if it is one big string instead of separate strings
         else if(quoteCount == 1)
         {
             strcat(tempString, line_words[i]);
             strcat(tempString, " ");
-            printf("%s,", tempString);
+           
         }
         //Once second quote is found, concatenate last string to tempString and copy entire temp string
         //(which is the concatenate string of all strings encased in double quotes) to our new command 
         //to be executed by the caller in main
         else
         {
+            
             strcat(tempString, line_words[i]);
             customIterator++;
             strcpy(newQuoteParseCommand[customIterator], tempString);
