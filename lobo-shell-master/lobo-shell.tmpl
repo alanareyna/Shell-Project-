@@ -203,7 +203,8 @@ We do not have any structs, struct members, global, static variables, or enumera
  */
 
 /**
- * @brief 
+ * @brief
+ * int *whichIdxToStart(char **line_words, int pipeCounter):
  * Loops through entirety of line_words and will store index values in a dynamically
  * allocated integer array where we will start our index into line_words when counting
  * the number of words between each pipe. 
@@ -216,7 +217,14 @@ We do not have any structs, struct members, global, static variables, or enumera
  * command parsing. This is so we can deal with excluding our pipes in line_words
  */
 
-
+/**
+ * @brief 
+ * void syserror(const char *s):
+ * This function written by Dr. Gondree is to exit the program with a syscall
+ * and the error message passed.
+ * @param s 
+ * Error string to be outputed if called
+ */
 ---- ALGORITHMS ----
 
 >> A6: Briefly describe how the functions (from A5) are called
